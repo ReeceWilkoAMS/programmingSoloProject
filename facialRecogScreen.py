@@ -1,4 +1,6 @@
 import cv2
+import numpy as np
+from mss import mss
 
 # Load the trained recognizer
 recognizer = cv2.face.LBPHFaceRecognizer_create()
@@ -7,13 +9,15 @@ recognizer.read("face_recognizer.yml")
 # Load the face detector
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-# Initialize the webcam
-cap = cv2.VideoCapture(0)
+# Debugging: List available monitors
+with mss() as sct:
+    monitors = sct.monitors
+    for idx, monitor in enumerate(monitors):
+        print(f"Monitor {idx}: {monitor}")
 
-# Check if the webcam is opened correctly
-if not cap.isOpened():
-    print("Error: Could not access the webcam.")
-    exit()
+# Select the desired screen (update based on the printed monitor info)
+screen_number = 2  # Change this to the correct index for your target screen
+monitor = monitors[screen_number]
 
 # Load the label-to-person mapping
 label_dict = {0: "Reece", 1: "Fran", 2: "Person 3"}  # Update this with actual label-person mapping
@@ -21,12 +25,12 @@ label_dict = {0: "Reece", 1: "Fran", 2: "Person 3"}  # Update this with actual l
 print("Press 'q' to quit.")
 
 while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
+    with mss() as sct:
+        # Capture the screen
+        screen_shot = np.array(sct.grab(monitor))
 
-    if not ret:
-        print("Error: Could not read frame.")
-        break
+    # Convert the screenshot to BGR format (OpenCV uses BGR format)
+    frame = cv2.cvtColor(screen_shot, cv2.COLOR_BGRA2BGR)
 
     # Convert the frame to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -37,7 +41,7 @@ while True:
     for (x, y, w, h) in faces:
         # Crop the face region from the frame
         face_roi = gray[y:y + h, x:x + w]
-        
+
         # Recognize the face
         label, confidence = recognizer.predict(face_roi)
 
@@ -49,12 +53,11 @@ while True:
         cv2.putText(frame, f"{name}: {confidence:.2f}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
 
     # Display the frame
-    cv2.imshow('Face Recognition', frame)
+    cv2.imshow('Face Recognition on Screen', frame)
 
     # Break the loop if 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Release the webcam and close all OpenCV windows
-cap.release()
+# Close all OpenCV windows
 cv2.destroyAllWindows()

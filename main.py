@@ -1,8 +1,10 @@
 import subprocess
 
+poi = input("Who are you Scanning?")
+
 # Start both scripts in parallel
-process1 = subprocess.Popen(["python", "camera1.py"])
-process2 = subprocess.Popen(["python", "camera2.py"])
+process1 = subprocess.Popen(["python", "camera1.py",poi])
+process2 = subprocess.Popen(["python", "camera2.py",poi])
 
 # Wait for both scripts to finish
 process1.wait()

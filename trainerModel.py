@@ -2,13 +2,13 @@ import os
 import cv2
 import numpy as np
 
-# Load the pre-trained Haar Cascade classifier for face detection
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Path to the test data folder
+test_data_dir = "test_data"
 
 # Initialize the recognizer
 recognizer = cv2.face.LBPHFaceRecognizer_create()
 
-# Path to the model file
+# Path to save the model
 model_path = "face_recognizer.yml"
 
 # Check if the model already exists
@@ -17,13 +17,7 @@ if os.path.exists(model_path):
     recognizer.read(model_path)
 else:
     print("No existing model found. Starting fresh.")
-
-# Initialize variables
-faces = []
-labels = []
-label_dict = {}
-label_id = 0
-
+    
 # Function to clean up the folder
 def clear_directory(directory):
     for file in os.listdir(directory):
@@ -37,70 +31,57 @@ def clear_directory(directory):
         except Exception as e:
             print(f"Error deleting file {file_path}: {e}")
 
-# Create a test_data directory if it doesn't exist
-test_data_dir = "test_data"
-if not os.path.exists(test_data_dir):
-    os.makedirs(test_data_dir)
+# Variables to store training data
+faces = []
+labels = []
+label_dict = {}  # Maps labels to person names
+label_id = 0     # Numeric label for each person
 
-# Open the webcam
-cap = cv2.VideoCapture(0)
+# Iterate over each person's folder in the test_data directory
+for person_name in os.listdir(test_data_dir):
+    person_path = os.path.join(test_data_dir, person_name)
 
-if not cap.isOpened():
-    print("Error: Could not access the webcam.")
-    exit()
+    # Ensure it is a directory
+    if os.path.isdir(person_path):
+        print(f"Processing images for: {person_name}")
 
-print("Press 'q' to quit and train the model.")
-
-# Face detection loop
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Error: Could not read frame.")
-        break
-
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces_detected = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-
-    for (x, y, w, h) in faces_detected:
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        face_roi = gray[y:y + h, x:x + w]
+        # Assign a label ID to the person
+        if person_name not in label_dict:
+            label_dict[person_name] = label_id
+            label_id += 1
         
-        # Save the detected face
-        person_name = "Person_" + str(label_id)
-        person_path = os.path.join(test_data_dir, person_name)
-        if not os.path.exists(person_path):
-            os.makedirs(person_path)
-        
-        face_filename = os.path.join(person_path, f"face_{len(os.listdir(person_path))}.jpg")
-        cv2.imwrite(face_filename, face_roi)
+        person_label = label_dict[person_name]
 
-        # Add face and label to training data
-        faces.append(face_roi)
-        labels.append(label_id)
+        # Iterate through each image in the person's folder
+        for image_file in os.listdir(person_path):
+            image_path = os.path.join(person_path, image_file)
 
-    # Display the frame
-    cv2.imshow('Facial Recognition - Capture Mode', frame)
+            # Read the image in grayscale (as required by the recognizer)
+            image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
-    # Break the loop if 'q' is pressed
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+            if image is None:
+                print(f"Skipping invalid image: {image_path}")
+                continue
 
-# Release the webcam and close windows
-cap.release()
-cv2.destroyAllWindows()
+            # Append the face and label to the training data
+            faces.append(image)
+            labels.append(person_label)
 
-print("Training the model with captured faces...")
-
-# Ensure there's data to train on
+# Train the recognizer if data is available
 if len(faces) > 0:
-    # Train the model incrementally
-    recognizer.update(faces, np.array(labels))
+    print("Training the model...")
+    recognizer.train(faces, np.array(labels))
     recognizer.save(model_path)
-    print(f"Model updated and saved as '{model_path}'.")
-
+    print(f"Model trained and saved as '{model_path}'.")
+    
     # Clear the test_data directory to save space
     print("Clearing the test_data directory...")
     clear_directory(test_data_dir)
     print("test_data directory cleared.")
+
+    # Print label mapping for reference
+    print("Label mapping:")
+    for name, label in label_dict.items():
+        print(f"{label}: {name}")
 else:
-    print("No faces captured. Model not updated.")
+    print("No valid training data found. Model not updated.")

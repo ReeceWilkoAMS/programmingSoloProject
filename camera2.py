@@ -1,6 +1,7 @@
 import cv2
 import os
 import numpy as np
+import sys
 
 # Load the pre-trained Haar Cascade classifier for face detection
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -13,7 +14,7 @@ if not cap.isOpened():
     exit()
 
 # Create the directory to store the images if it doesn't exist
-output_dir = "test_data\\reece"
+output_dir = f"test_data\\sideCam{sys.argv[1:][0]}"
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
