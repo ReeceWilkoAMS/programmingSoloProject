@@ -1,7 +1,8 @@
 import cv2
+import numpy as np
 
 # Load the trained recognizer
-recognizer = cv2.face.LBPHFaceRecognizer_create()
+recognizer = cv2.face.LBPHFaceRecognizer_create(radius=1, neighbors=8, grid_x=8, grid_y=8)
 recognizer.read("face_recognizer.yml")
 
 # Load the face detector
@@ -15,8 +16,13 @@ if not cap.isOpened():
     print("Error: Could not access the webcam.")
     exit()
 
-# Load the label-to-person mapping
-label_dict = {0: "Reece", 1: "Fran", 2: "Person 3"}  # Update this with actual label-person mapping
+# Load the label mapping
+try:
+    label_dict = np.load("label_map.npy", allow_pickle=True).item()
+    print("Label mapping loaded successfully.")
+except FileNotFoundError:
+    print("Error: 'label_map.npy' not found. Train the model first.")
+    exit()
 
 print("Press 'q' to quit.")
 
@@ -41,11 +47,16 @@ while True:
         # Recognize the face
         label, confidence = recognizer.predict(face_roi)
 
+        CONFIDENCE_THRESHOLD = 50.0
+
         # Draw a rectangle around the face
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
         # Display the name of the person
-        name = label_dict.get(label, "Unknown")
+        if confidence < CONFIDENCE_THRESHOLD:
+            name = label_dict.get(label, "Unknown")
+        else:
+            name = "Unknown"
         cv2.putText(frame, f"{name}: {confidence:.2f}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
 
     # Display the frame
